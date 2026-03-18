@@ -22,7 +22,7 @@ class TestModNum(unittest.TestCase):
 
 
 class TestPoint(unittest.TestCase):
-    _, _, _, Fp, Fr, EcPoint = secp256k1()
+    _, _, _, Fp, Fn, EcPoint = secp256k1()
     x = 0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798
     y = 0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8
     G = EcPoint(Fp(x), Fp(y))

@@ -2,14 +2,14 @@ from edcsa import secp256k1
 from derReader import parsePublicKey, parseSignature
 
 if __name__ == "__main__":
-    sign, verify, generateKeyPair, Fp, Fr, EcPoint = secp256k1()
+    sign, verify, generateKeyPair, Fp, Fn, EcPoint = secp256k1()
 
     with open("message.txt", "r") as f:
         msg = f.read().encode()
 
     r, s = parseSignature("sig.der")
-    r = Fr(r)
-    s = Fr(s)
+    r = Fn(r)
+    s = Fn(s)
 
     pubx, puby = parsePublicKey("pubkey.der")
     public_key = EcPoint(Fp(pubx), Fp(puby))

@@ -71,7 +71,7 @@ def makeModClass(q):
 ###
 def makeEc(p, a, b, gx, gy, n):
     Fp = makeModClass(p)
-    Fr = makeModClass(n)
+    Fn = makeModClass(n)
 
     class EcPoint:
         def __init__(self, x : Fp, y : Fp):
@@ -97,7 +97,7 @@ def makeEc(p, a, b, gx, gy, n):
                 if self.y == -rhs.y:
                     return ZeroPoint()
                 # 接線
-                l = (Fp(3) * self.x ** 2) / (Fp(2) * self.y)
+                l = (Fp(3) * self.x ** 2 + Fp(a)) / (Fp(2) * self.y)
             else:
                 l = (rhs.y - self.y) / (rhs.x - self.x)
             
@@ -107,9 +107,9 @@ def makeEc(p, a, b, gx, gy, n):
             y3 = l * (self.x - x3) - self.y
             return EcPoint(x3, y3)
         
-        ### only define Fr * Point, not Point * Fr.
+        ### only define Fn * Point, not Point * Fn.
         def __rmul__(self, k):
-            if isinstance(k, Fr):
+            if isinstance(k, Fn):
                 k = k.v
             if k == 0:
                 return ZeroPoint()
@@ -133,31 +133,34 @@ def makeEc(p, a, b, gx, gy, n):
         
     G = EcPoint(Fp(gx), Fp(gy))
 
-    def sign(msg : bytes, private_key : Fr, r : Fr = None):
-        if r is None:
-            # if r is given, use it instead of random k. This is for testing only.
-            r = Fr(secrets.randbelow(n - 1) + 1)
+    def sign(msg : bytes, private_key : Fn, k : Fn = None):
+        if k is None:
+            # if k is given, use it instead of random k. This is for testing only.
+            k = Fn(secrets.randbelow(n - 1) + 1)
 
         hash = byteToInt(sha256(msg).digest())
-        rg = r * G
-        rgx = Fr(rg.x.v)
-        s = (Fr(hash) + private_key * rgx) / r
-        return (rgx, s)
+        kg = k * G
+        r = Fn(kg.x.v)
+        s = (Fn(hash) + private_key * r) / k
+        if r == Fn(0) or s == Fn(0):
+            # regenerate k and try again if r or s is 0, since that would leak the private key.
+            return sign(msg, private_key)
+        return (r, s)
 
-    def verify(msg : bytes, signature : tuple[Fr, Fr], public_key : EcPoint):
-        rx, s = signature
+    def verify(msg : bytes, signature : tuple[Fn, Fn], public_key : EcPoint):
+        r, s = signature
         hash = byteToInt(sha256(msg).digest())
-        a = (Fr(hash) / s) * G
-        b = (rx / s) * public_key
+        a = (Fn(hash) / s) * G
+        b = (r / s) * public_key
         c = a + b
-        return c.x == rx
+        return c.x == r
 
     def generateKeyPair():
-        private_key = Fr(secrets.randbelow(n - 1) + 1)
+        private_key = Fn(secrets.randbelow(n - 1) + 1)
         public_key = private_key * G
         return private_key, public_key
     
-    return sign, verify, generateKeyPair, Fp, Fr, EcPoint
+    return sign, verify, generateKeyPair, Fp, Fn, EcPoint
 
 # secp256k1 instance
 def secp256k1():
@@ -165,4 +168,6 @@ def secp256k1():
     n = 0XFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
     x = 0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798
     y = 0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8
-    return makeEc(p, 0, 7, x, y, n)
+    a = 0
+    b = 7
+    return makeEc(p, a, b, x, y, n)
